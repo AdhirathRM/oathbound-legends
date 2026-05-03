@@ -1,22 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-// TODO: Replace with actual Supabase project URL and anon key
-const supabaseUrl = "https://your-project-id.supabase.co";
-const supabaseAnonKey = "your-anon-key-here";
+const supabaseUrl = "https://rclyijcgnlfmpmbybxfa.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjbHlpamNnbmxmbXBtYnlieGZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4Mjg5NTgsImV4cCI6MjA5MzQwNDk1OH0.jqLkCo4I7awXQaSlcUOmP-hhqLjPIG22Zi9J5GJWAD0";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Example query helpers (not yet wired to real data)
-export const fetchTrials = async () => {
-  // const { data, error } = await supabase.from("trials").select("*");
-  // if (error) throw error;
-  // return data;
-  throw new Error("Supabase not yet configured");
-};
-
-export const fetchCharacters = async () => {
-  // const { data, error } = await supabase.from("characters").select("*");
-  // if (error) throw error;
-  // return data;
-  throw new Error("Supabase not yet configured");
-};

@@ -10,14 +10,15 @@ export default function Navbar() {
   const isDark = theme === "void";
 
   const navLinks = [
-    { to: "/", label: "Home" },
+    { to: "/home", label: "Home" },
     { to: "/chronicle", label: "Chronicle" },
     { to: "/compendium", label: "Compendium" },
-    { to: "/lore", label: "Lore" }, // <-- ADDED THIS LINE
+    { to: "/lore", label: "Lore" },
+    { to: "/account", label: "Account" },
   ];
 
   const isActive = (path) =>
-    path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+    path === "/home" ? location.pathname === "/home" : location.pathname.startsWith(path);
 
   return (
     <nav
@@ -30,7 +31,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/home" className="flex items-center gap-3 group">
             <img
               src="/logo.png"
               alt="Oathbound Logo"

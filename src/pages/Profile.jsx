@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -9,27 +9,7 @@ import PageTransition from "../components/PageTransition";
 import SpriteBox from "../components/SpriteBox";
 import { useTheme } from "../hooks/useTheme";
 import { getCharacterById } from "../data/characters";
-
-const mockComments = [
-  {
-    id: 1,
-    author: "OathSeeker_Mira",
-    time: "2 days ago",
-    text: "For the agility-based build, opening with two quick dodge rolls before the main attack phase made a huge difference. Don't sleep on the Speed stat here.",
-  },
-  {
-    id: 2,
-    author: "TrialRunner_IX",
-    time: "5 days ago",
-    text: "The Intelligence scaling is underrated. If you're running a caster build, the damage multiplier kicks in hard after 80 INT. Stack it.",
-  },
-  {
-    id: 3,
-    author: "VoidWalker_99",
-    time: "1 week ago",
-    text: "Took me 14 attempts. The turning point was learning the tell for the second phase — watch the feet, not the hands. Trust me on this.",
-  },
-];
+import { supabase } from "../lib/supabase";
 
 function CustomRadarTooltip({ active, payload, isDark }) {
   if (active && payload && payload.length) {
@@ -138,7 +118,81 @@ export default function Profile() {
   const [animState, setAnimState] = useState("Idle");
   const [malakorPhase, setMalakorPhase] = useState(1);
 
+  // Community Comments State
+  const [session, setSession] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const character = getCharacterById(id);
+
+  // Fetch session and comments on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (character) {
+      fetchComments();
+    }
+  }, [character?.id]);
+
+  const fetchComments = async () => {
+    // We join the profiles table to get the username of the commenter
+    const { data, error } = await supabase
+      .from("comments")
+      .select(`
+        id,
+        content,
+        created_at,
+        profiles ( username )
+      `)
+      .eq("character_id", id)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setComments(data);
+    }
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !session) return;
+
+    setIsSubmitting(true);
+
+    const { error } = await supabase.from("comments").insert([
+      {
+        character_id: id,
+        user_id: session.user.id,
+        content: newComment.trim(),
+      },
+    ]);
+
+    if (!error) {
+      setNewComment("");
+      fetchComments(); // Refresh list to show the new comment
+    } else {
+      console.error("Error posting comment:", error);
+    }
+
+    setIsSubmitting(false);
+  };
+
+  const formatDate = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   if (!character) {
     return (
@@ -440,46 +494,97 @@ export default function Profile() {
                 <div className={`flex-1 h-px ${isDark ? "bg-void-border" : "bg-scroll-border"}`} />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {mockComments.map((comment, idx) => (
-                  <motion.div
-                    key={comment.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: idx * 0.1 }}
-                    className={`p-5 ${isDark ? "bg-void-card pixel-card-void" : "bg-scroll-card pixel-card-scroll"}`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-7 h-7 flex items-center justify-center text-xs font-pixel ${
-                            isDark ? "bg-red-900 text-red-200" : "bg-scroll-accent text-white"
-                          }`}
-                          style={{ fontSize: "8px" }}
-                        >
-                          {comment.author[0]}
+              {/* Submissions List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+                {comments.length === 0 ? (
+                  <div className={`col-span-full p-5 text-center font-body italic ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+                    No strategies recorded yet. The archives are waiting.
+                  </div>
+                ) : (
+                  comments.map((comment) => (
+                    <motion.div
+                      key={comment.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.4 }}
+                      className={`p-5 flex flex-col ${isDark ? "bg-void-card pixel-card-void" : "bg-scroll-card pixel-card-scroll"}`}
+                    >
+                      <div className="flex items-center justify-between mb-3 border-b pb-2 border-opacity-30 border-current">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-7 h-7 flex items-center justify-center text-xs font-pixel ${
+                              isDark ? "bg-red-900 text-red-200" : "bg-scroll-accent text-white"
+                            }`}
+                            style={{ fontSize: "8px" }}
+                          >
+                            {comment.profiles?.username?.[0]?.toUpperCase() || "?"}
+                          </div>
+                          <span className={`font-pixel text-xs ${isDark ? "text-red-400" : "text-scroll-accent"}`} style={{ fontSize: "8px" }}>
+                            {comment.profiles?.username || "Unknown Archivist"}
+                          </span>
                         </div>
-                        <span className={`font-pixel text-xs ${isDark ? "text-red-400" : "text-scroll-accent"}`} style={{ fontSize: "8px" }}>
-                          {comment.author}
+                        <span className={`font-pixel text-xs ${isDark ? "text-void-muted/60" : "text-scroll-muted/60"}`} style={{ fontSize: "7px" }}>
+                          {formatDate(comment.created_at)}
                         </span>
                       </div>
-                      <span className={`font-pixel text-xs ${isDark ? "text-void-muted/60" : "text-scroll-muted/60"}`} style={{ fontSize: "7px" }}>
-                        {comment.time}
-                      </span>
-                    </div>
-                    <p className={`font-body text-sm leading-relaxed ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
-                      {comment.text}
-                    </p>
-                  </motion.div>
-                ))}
+                      <p className={`font-body text-sm leading-relaxed whitespace-pre-wrap ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+                        {comment.content}
+                      </p>
+                    </motion.div>
+                  ))
+                )}
               </div>
 
-              <div className={`mt-6 p-5 border-2 border-dashed text-center ${isDark ? "border-void-border text-void-muted" : "border-scroll-border text-scroll-muted"}`}>
-                <p className={`font-pixel text-xs ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
-                  COMMUNITY SUBMISSIONS OPEN — SIGN IN TO ADD A STRATEGY
-                </p>
-              </div>
+              {/* Submission Form / Sign In Prompt */}
+              {session ? (
+                <div className={`p-6 border ${isDark ? "bg-void-card border-void-border" : "bg-scroll-surface border-scroll-border"}`}>
+                  <div className={`font-pixel text-xs mb-4 ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "9px" }}>
+                    ADD YOUR STRATEGY
+                  </div>
+                  <form onSubmit={handleCommentSubmit}>
+                    <textarea
+                      required
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your combat insights..."
+                      rows={3}
+                      className={`w-full px-4 py-3 font-body text-sm border outline-none transition-all duration-200 resize-none mb-4 ${
+                        isDark
+                          ? "bg-void-bg border-void-border text-void-text focus:border-red-800"
+                          : "bg-white border-scroll-border text-scroll-text focus:border-scroll-accent"
+                      }`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !newComment.trim()}
+                      className={`font-pixel px-6 py-3 transition-all duration-300 ${
+                        isDark
+                          ? "bg-red-900 text-red-200 hover:bg-red-800 border border-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          : "bg-scroll-accent text-white hover:bg-scroll-warm disabled:opacity-50 disabled:cursor-not-allowed"
+                      }`}
+                      style={{ fontSize: "9px" }}
+                    >
+                      {isSubmitting ? "RECORDING..." : "SUBMIT TO ARCHIVES"}
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div className={`mt-6 p-5 border-2 border-dashed text-center ${isDark ? "border-void-border text-void-muted bg-void-card/20" : "border-scroll-border text-scroll-muted bg-scroll-surface"}`}>
+                  <p className={`font-pixel text-xs mb-3 ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
+                    COMMUNITY SUBMISSIONS OPEN — SIGN IN TO ADD A STRATEGY
+                  </p>
+                  <Link
+                    to="/"
+                    className={`font-pixel px-4 py-2 inline-block transition-all ${
+                      isDark ? "bg-void-bg border border-void-border text-void-text hover:text-red-400 hover:border-red-800" : "bg-white border border-scroll-border text-scroll-accent hover:bg-scroll-accent hover:text-white"
+                    }`}
+                    style={{ fontSize: "8px" }}
+                  >
+                    SIGN IN TO THE ARCHIVES
+                  </Link>
+                </div>
+              )}
             </motion.div>
           )}
         </div>

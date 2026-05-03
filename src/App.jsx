@@ -8,6 +8,9 @@ import Profile from "./pages/Profile";
 import { useTheme } from "./hooks/useTheme";
 import Lore from "./pages/Lore";
 import BlogPost from "./pages/BlogPost";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Account from "./pages/Account";
 
 export default function App() {
   const location = useLocation();
@@ -23,12 +26,15 @@ export default function App() {
       <Navbar />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Login />} />
+          <Route path="/home" element={<Home />} />
           <Route path="/chronicle" element={<Chronicle />} />
           <Route path="/compendium" element={<Compendium />} />
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/lore" element={<Lore />} />
           <Route path="/lore/:slug" element={<BlogPost />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/account" element={<Account />} />
         </Routes>
       </AnimatePresence>
     </div>
