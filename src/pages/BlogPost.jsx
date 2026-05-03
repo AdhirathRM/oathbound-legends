@@ -1,15 +1,65 @@
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { useTheme } from "../hooks/useTheme";
 import { getBlogBySlug } from "../data/blogs";
+import { supabase } from "../lib/supabase";
 
 export default function BlogPost() {
   const { slug } = useParams();
   const { theme } = useTheme();
   const isDark = theme === "void";
 
-  const blog = getBlogBySlug(slug);
+  const [blog, setBlog] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBlogData = async () => {
+      // 1. First, check if it's one of the static hardcoded blogs
+      const staticBlog = getBlogBySlug(slug);
+      if (staticBlog) {
+        setBlog(staticBlog);
+        setLoading(false);
+        return;
+      }
+
+      // 2. If not, check the database for community submissions
+      const { data, error } = await supabase
+        .from("lore_entries")
+        .select("*, profiles(username)")
+        .eq("slug", slug)
+        .single();
+
+      if (data && !error) {
+        setBlog({
+          id: data.id,
+          title: data.title,
+          author: data.profiles?.username || "Unknown Archivist",
+          date: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          tag: data.tag,
+          banner: data.banner,
+          content: data.content,
+        });
+      }
+      
+      setLoading(false);
+    };
+
+    fetchBlogData();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <PageTransition>
+        <div className={`min-h-screen flex items-center justify-center ${isDark ? "bg-void-bg" : "bg-scroll-bg"}`}>
+          <div className={`font-pixel text-xs animate-pulse ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+            UNSEALING ARCHIVE...
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
 
   if (!blog) {
     return (
@@ -57,7 +107,7 @@ export default function BlogPost() {
             {/* Content Area */}
             <div className="p-8 md:p-12">
               {/* Header Info */}
-              <div className="flex items-center gap-3 mb-6 font-pixel text-xs" style={{ fontSize: "8px" }}>
+              <div className="flex items-center gap-3 mb-6 font-pixel text-xs flex-wrap" style={{ fontSize: "8px" }}>
                 <span className={`px-2 py-1 border ${isDark ? "bg-red-900/60 text-red-200 border-red-800" : "bg-scroll-accent text-white border-scroll-accent"}`}>
                   {blog.tag}
                 </span>

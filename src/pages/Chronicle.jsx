@@ -1,13 +1,92 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import PageTransition from "../components/PageTransition";
 import PixelStars from "../components/PixelStars";
 import { useTheme } from "../hooks/useTheme";
 import { trials, elementColors } from "../data/trials";
+import { supabase } from "../lib/supabase";
 
 export default function Chronicle() {
   const { theme } = useTheme();
   const isDark = theme === "void";
+
+  // Database States
+  const [session, setSession] = useState(null);
+  const [unlockedTrial, setUnlockedTrial] = useState(1);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    // 1. Fetch current progress on mount
+    const fetchProgress = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      
+      if (session) {
+        const { data } = await supabase
+          .from("user_progress")
+          .select("unlocked_trial")
+          .eq("user_id", session.user.id)
+          .single();
+          
+        if (data) setUnlockedTrial(data.unlocked_trial);
+      }
+    };
+    
+    fetchProgress();
+
+    // 2. Listen for login/logout events to instantly update the UI
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        supabase.from("user_progress").select("unlocked_trial").eq("user_id", session.user.id).single().then(({data}) => {
+           if(data) setUnlockedTrial(data.unlocked_trial);
+        });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const advanceTrial = async (currentNumber) => {
+    if (!session) return;
+    setIsUpdating(true);
+    
+    const nextNumber = currentNumber + 1;
+    
+    // Update Supabase
+    const { error } = await supabase
+      .from("user_progress")
+      .update({ unlocked_trial: nextNumber, last_updated: new Date().toISOString() })
+      .eq("user_id", session.user.id);
+    
+    if (!error) {
+      setUnlockedTrial(nextNumber);
+    } else {
+      console.error("Failed to update progress:", error);
+    }
+    
+    setIsUpdating(false);
+  };
+
+  const resetProgress = async () => {
+    if (!session) return;
+    setIsUpdating(true);
+    
+    // Reset to Trial 1 in Supabase
+    const { error } = await supabase
+      .from("user_progress")
+      .update({ unlocked_trial: 1, last_updated: new Date().toISOString() })
+      .eq("user_id", session.user.id);
+    
+    if (!error) {
+      setUnlockedTrial(1);
+    } else {
+      console.error("Failed to reset progress:", error);
+    }
+    
+    setIsUpdating(false);
+  };
 
   return (
     <PageTransition>
@@ -57,22 +136,54 @@ export default function Chronicle() {
             </p>
           </motion.div>
 
+          {/* ── Guest Prompt Banner ──────────────────────── */}
+          {!session && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className={`mb-10 p-5 border-2 border-dashed flex flex-col sm:flex-row items-center justify-between gap-4 ${
+                isDark ? "border-void-border bg-void-card/30" : "border-scroll-border bg-scroll-surface"
+              }`}
+            >
+              <div>
+                <p className={`font-pixel text-xs mb-2 ${isDark ? "text-red-400" : "text-scroll-accent"}`} style={{ fontSize: "8px" }}>
+                  ◈ GUEST ARCHIVIST ◈
+                </p>
+                <p className={`font-serif italic ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+                  The records are open for study. Sign in to forge your own path and track your progress against the Sentinels.
+                </p>
+              </div>
+              <Link
+                to="/"
+                className={`font-pixel flex-shrink-0 px-4 py-3 border transition-all ${
+                  isDark ? "border-void-border text-void-muted hover:border-red-800 hover:text-red-400" : "border-scroll-border text-scroll-muted hover:border-scroll-accent hover:text-scroll-accent"
+                }`}
+                style={{ fontSize: "8px" }}
+              >
+                SIGN IN →
+              </Link>
+            </motion.div>
+          )}
+
           {/* ── Sentinel Note ───────────────────────────── */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.25 }}
-            className={`mb-10 flex items-center gap-4 px-4 py-3 border ${
+            className={`mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 py-3 border ${
               isDark ? "border-void-border/50 bg-void-card/40" : "border-scroll-border bg-scroll-surface"
             }`}
           >
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: "#E0E8FF", boxShadow: "0 0 6px #E0E8FF" }} />
-            <p className={`font-body text-sm ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
-              <span className={`font-serif font-bold not-italic ${isDark ? "text-void-text" : "text-scroll-text"}`}>The Sentinel</span> — fallen knights bound to Malakor's will — guard Trials I through IX. Only in Trial X does Lord Malakor himself appear.
-            </p>
+            <div className="flex items-center gap-4">
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: "#E0E8FF", boxShadow: "0 0 6px #E0E8FF" }} />
+              <p className={`font-body text-sm ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+                <span className={`font-serif font-bold not-italic ${isDark ? "text-void-text" : "text-scroll-text"}`}>The Sentinel</span> — fallen knights bound to Malakor's will — guard Trials I through IX.
+              </p>
+            </div>
             <Link
               to="/profile/sentinel"
-              className={`font-pixel flex-shrink-0 px-3 py-1 border transition-all ${
+              className={`font-pixel flex-shrink-0 px-3 py-1 border transition-all self-start sm:self-auto ${
                 isDark ? "border-void-border text-void-muted hover:border-void-accent hover:text-void-glow" : "border-scroll-border text-scroll-muted hover:border-scroll-accent"
               }`}
               style={{ fontSize: "7px" }}
@@ -80,6 +191,42 @@ export default function Chronicle() {
               VIEW SENTINEL →
             </Link>
           </motion.div>
+
+          {/* ── Victory Banner ───────────────────────────── */}
+          {session && unlockedTrial > 10 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`mb-12 p-6 border-2 text-center relative overflow-hidden ${
+                isDark ? "border-emerald-800 bg-emerald-950/20" : "border-emerald-400 bg-emerald-50"
+              }`}
+            >
+              {isDark && <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.1)_0%,transparent_70%)] pointer-events-none" />}
+              <h2 className={`relative z-10 font-serif font-black text-2xl md:text-3xl mb-3 ${isDark ? "text-emerald-400 glow-text" : "text-emerald-700"}`}>
+                THE OATH IS FULFILLED
+              </h2>
+              <p className={`relative z-10 font-pixel text-xs leading-relaxed ${isDark ? "text-emerald-500/80" : "text-emerald-600"}`} style={{ fontSize: "9px" }}>
+                LORD MALAKOR IS DEFEATED. LEO IS FREE. <br className="hidden sm:block"/>
+                YOU ARE FOREVER A LEGEND OF THE ARCHIVES.
+              </p>
+            </motion.div>
+          )}
+
+          {/* ── Progress Reset Control ──────────────────── */}
+          {session && unlockedTrial > 1 && (
+            <div className="flex justify-end mb-6">
+              <button
+                onClick={resetProgress}
+                disabled={isUpdating}
+                className={`font-pixel px-4 py-2 border transition-all ${
+                  isDark ? "border-red-900/40 text-red-500/70 hover:text-red-400 hover:bg-red-950/30 disabled:opacity-50" : "border-red-200 text-red-500 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
+                }`}
+                style={{ fontSize: "7px" }}
+              >
+                {isUpdating ? "REWEAVING TIME..." : "↺ REWIND THE CHRONICLE (RESET)"}
+              </button>
+            </div>
+          )}
 
           {/* ── Timeline ────────────────────────────────── */}
           <div className="relative">
@@ -95,7 +242,12 @@ export default function Chronicle() {
             <div className="space-y-8">
               {trials.map((trial, idx) => {
                 const isFinal = trial.isFinal;
-                const isLocked = trial.status === "locked";
+                
+                // If there's no session, everything is available and unlocked
+                const isLocked = session ? trial.number > unlockedTrial : false;
+                const isCompleted = session ? trial.number < unlockedTrial : false;
+                const isCurrent = session ? trial.number === unlockedTrial : false;
+                
                 const elColor = elementColors[trial.element] || elementColors.Stone;
                 const isRight = idx % 2 === 0;
 
@@ -110,9 +262,11 @@ export default function Chronicle() {
                   >
                     {/* Timeline dot */}
                     <div
-                      className={`absolute left-6 sm:left-1/2 w-4 h-4 -translate-x-1/2 mt-6 z-10 ${
+                      className={`absolute left-6 sm:left-1/2 w-4 h-4 -translate-x-1/2 mt-6 z-10 transition-colors duration-500 ${
                         isLocked
                           ? isDark ? "bg-void-border border border-void-border" : "bg-scroll-border border border-scroll-border"
+                          : isCompleted
+                          ? isDark ? "bg-emerald-800 border border-emerald-600 shadow-[0_0_6px_rgba(4,120,87,0.4)]" : "bg-emerald-500 border border-emerald-600"
                           : isFinal
                           ? "bg-red-700 shadow-[0_0_12px_rgba(139,0,0,0.8)]"
                           : isDark
@@ -164,6 +318,13 @@ export default function Chronicle() {
                         {isLocked && (
                           <div className="absolute top-4 right-4 z-10">
                             <span className={`text-xl ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>🔒</span>
+                          </div>
+                        )}
+                        
+                        {/* Completed icon */}
+                        {isCompleted && (
+                          <div className="absolute top-4 right-4 z-10">
+                            <span className={`text-xl ${isDark ? "text-emerald-800/80" : "text-emerald-400/80"}`}>✓</span>
                           </div>
                         )}
 
@@ -220,7 +381,7 @@ export default function Chronicle() {
 
                         {/* Lore */}
                         <p
-                          className={`font-body leading-relaxed text-sm mb-4 ${
+                          className={`font-body leading-relaxed text-sm mb-4 transition-colors ${
                             isLocked
                               ? isDark ? "text-void-muted/60" : "text-scroll-muted/60"
                               : isDark ? "text-void-muted" : "text-scroll-muted"
@@ -229,39 +390,60 @@ export default function Chronicle() {
                           {isLocked ? trial.lore.slice(0, 80) + "... The oath is not yet fulfilled." : trial.lore}
                         </p>
 
-                        {/* Status + link */}
+                        {/* Status + Actions */}
                         <div className="flex items-center gap-3 flex-wrap">
                           <span
-                            className={`font-pixel px-3 py-1 inline-block ${
+                            className={`font-pixel px-3 py-1 inline-block transition-colors ${
                               isLocked
                                 ? isDark
                                   ? "bg-void-border/40 text-void-muted border border-void-border/40"
                                   : "bg-scroll-border/30 text-scroll-muted border border-scroll-border"
-                                : isFinal
+                                : isCompleted
+                                ? isDark
+                                  ? "bg-emerald-950/60 text-emerald-500 border border-emerald-800/40"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-300"
+                                : isFinal && !session
                                 ? isDark
                                   ? "bg-red-950/60 text-red-400 border border-red-800/40"
                                   : "bg-red-100 text-red-800 border border-red-400"
                                 : isDark
-                                ? "bg-emerald-900/40 text-emerald-400 border border-emerald-700/40"
-                                : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                ? session && isCurrent ? "bg-void-accent/20 text-void-glow border border-void-accent/40" : "bg-emerald-900/40 text-emerald-400 border border-emerald-700/40"
+                                : session && isCurrent ? "bg-scroll-accent/10 text-scroll-accent border border-scroll-accent/30" : "bg-emerald-100 text-emerald-800 border border-emerald-300"
                             }`}
                             style={{ fontSize: "8px" }}
                           >
-                            {isLocked ? "🔒 LOCKED" : isFinal ? "⚔ FINAL TRIAL" : "✓ AVAILABLE"}
+                            {isLocked ? "🔒 LOCKED" : isCompleted ? "✓ COMPLETED" : isFinal ? "⚔ FINAL TRIAL" : session && isCurrent ? "⚠ CURRENT TRIAL" : "✓ AVAILABLE"}
                           </span>
 
                           {!isLocked && (
-                            <Link
-                              to={`/profile/${trial.enemyId}`}
-                              className={`font-pixel text-xs transition-all ${
-                                isDark
-                                  ? "text-void-muted hover:text-red-400"
-                                  : "text-scroll-muted hover:text-scroll-accent"
-                              }`}
-                              style={{ fontSize: "7px" }}
-                            >
-                              VIEW ENEMY →
-                            </Link>
+                            <>
+                              <Link
+                                to={`/profile/${trial.enemyId}`}
+                                className={`font-pixel text-xs transition-all ${
+                                  isDark
+                                    ? "text-void-muted hover:text-red-400"
+                                    : "text-scroll-muted hover:text-scroll-accent"
+                                }`}
+                                style={{ fontSize: "7px" }}
+                              >
+                                VIEW ENEMY →
+                              </Link>
+                              
+                              {isCurrent && (
+                                <button
+                                  onClick={() => advanceTrial(trial.number)}
+                                  disabled={isUpdating}
+                                  className={`font-pixel px-3 py-1 border transition-all ml-auto sm:ml-0 ${
+                                    isDark
+                                      ? "border-emerald-700/50 text-emerald-400 hover:bg-emerald-900/40 disabled:opacity-50"
+                                      : "border-emerald-400 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                                  }`}
+                                  style={{ fontSize: "7px" }}
+                                >
+                                  {isUpdating ? "FIGHTING..." : isFinal ? "DEFEAT MALAKOR ⚔" : "DEFEAT SENTINEL ⚔"}
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

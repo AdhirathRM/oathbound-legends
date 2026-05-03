@@ -6,12 +6,12 @@ export const blogs = [
     author: "Archivist_Lys",
     date: "April 10, 2026",
     tag: "LORE",
-    banner: "/throne-room.png", // Reusing your existing background for now
+    banner: "/lore.png", 
     excerpt: "Before the nine trials, there was only one. Discover the tragic history of the knight who first fell to the void.",
     content: [
       "Long before Lord Malakor claimed the throne and plunged the realm into eternal night, the Sentinels were noble guardians. They were tasked with protecting the borders between the mortal world and the creeping Void.",
       "However, the Void does not conquer by force; it conquers by whispers. It finds the cracks in a warrior's resolve—doubt, fear, ambition. The first to fall was not the weakest among them, but their commander.",
-      "Convinced that he could harness the Void's power to protect his people, he allowed it into his mind. Now, he wanders the lower trials, a hollow shell of his former glory, testing the resolve of any hero foolish enough to seek the kidnapped squire."
+      "Convinced that he could harness the Void's power to protect his people, he wanders the lower trials, a hollow shell of his former glory, testing the resolve of any hero foolish enough to seek the kidnapped squire."
     ]
   },
   {
@@ -21,7 +21,7 @@ export const blogs = [
     author: "TrialRunner_IX",
     date: "April 15, 2026",
     tag: "STRATEGY",
-    banner: "/throne-room.png",
+    banner: "/strategy.png",
     excerpt: "Struggling with crowd control? Here is why The Brawler should be your frontline tank in Trial 4.",
     content: [
       "The Brawler is often misunderstood by new players. Because his speed stat is relatively low, many bench him in favor of the Ronin or the Sharpshooter. This is a fatal mistake in the mid-game.",
@@ -36,7 +36,7 @@ export const blogs = [
     author: "Dev_Adhirath",
     date: "April 18, 2026",
     tag: "UPDATE",
-    banner: "/throne-room.png",
+    banner: "/dev.png",
     excerpt: "A look into the recent updates to character sprite animations, frame counts, and attack sheets.",
     content: [
       "This week, we pushed a major update to the visual engine. Previously, all characters shared a standard 4-frame animation loop. While this worked for idle states, it made walking and attacking feel stiff.",
