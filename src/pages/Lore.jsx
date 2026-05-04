@@ -6,12 +6,15 @@ import { useTheme } from "../hooks/useTheme";
 import { blogs as staticBlogs } from "../data/blogs";
 import { supabase } from "../lib/supabase";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function Lore() {
   const { theme } = useTheme();
   const isDark = theme === "void";
 
   const [session, setSession] = useState(null);
   const [dynamicBlogs, setDynamicBlogs] = useState([]);
+  const [popularLore, setPopularLore] = useState([]);
   
   // Form State
   const [title, setTitle] = useState("");
@@ -30,9 +33,34 @@ export default function Lore() {
     });
 
     fetchDynamicLore();
+    fetchPopularLore(); // Fetch from our new Express route!
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchPopularLore = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/lore/popular`);
+      if (res.ok) {
+        const data = await res.json();
+        // Format them similarly to the main fetch
+        const formatted = data.map(entry => ({
+          id: entry.id,
+          slug: entry.slug,
+          title: entry.title,
+          author: entry.profiles?.username || "Unknown Archivist",
+          date: new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          tag: entry.tag,
+          banner: entry.banner,
+          excerpt: entry.excerpt,
+          views: entry.view_count || 0
+        }));
+        setPopularLore(formatted);
+      }
+    } catch (err) {
+      console.error("Failed to fetch popular lore", err);
+    }
+  };
 
   const fetchDynamicLore = async () => {
     const { data, error } = await supabase
@@ -43,7 +71,7 @@ export default function Lore() {
     if (!error && data) {
       const formatted = data.map(entry => ({
         id: entry.id,
-        user_id: entry.user_id, // We need this to check ownership
+        user_id: entry.user_id,
         slug: entry.slug,
         title: entry.title,
         author: entry.profiles?.username || "Unknown Archivist",
@@ -51,7 +79,8 @@ export default function Lore() {
         tag: entry.tag,
         banner: entry.banner,
         excerpt: entry.excerpt,
-        content: entry.content
+        content: entry.content,
+        views: entry.view_count || 0
       }));
       setDynamicBlogs(formatted);
     }
@@ -63,12 +92,10 @@ export default function Lore() {
 
     setIsSubmitting(true);
 
-    // Split content into paragraphs by double newlines
     const paragraphs = content.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
     const excerpt = paragraphs[0].length > 100 ? paragraphs[0].substring(0, 100) + "..." : paragraphs[0];
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 10000);
 
-    // Determine the correct banner image based on the selected tag
     let bannerUrl = "/lore.png";
     if (tag === "STRATEGY") bannerUrl = "/strategy.png";
     if (tag === "UPDATE") bannerUrl = "/dev.png";
@@ -89,7 +116,7 @@ export default function Lore() {
       setTitle("");
       setTag("LORE");
       setContent("");
-      fetchDynamicLore(); // Refresh the list
+      fetchDynamicLore(); 
     } else {
       console.error("Error submitting lore:", error);
     }
@@ -98,7 +125,7 @@ export default function Lore() {
   };
 
   const handleDeleteLore = async (e, id) => {
-    e.preventDefault(); // Prevents the Link from opening the blog post
+    e.preventDefault(); 
     e.stopPropagation();
     
     const confirmDelete = window.confirm("Are you sure you want to strike this entry from the archives?");
@@ -106,13 +133,13 @@ export default function Lore() {
 
     const { error } = await supabase.from("lore_entries").delete().eq("id", id);
     if (!error) {
-      fetchDynamicLore(); // Refresh the list to remove the deleted post
+      fetchDynamicLore(); 
+      fetchPopularLore();
     } else {
       console.error("Error deleting lore:", error);
     }
   };
 
-  // Merge static and dynamic blogs for display
   const allBlogs = [...dynamicBlogs, ...staticBlogs];
 
   return (
@@ -138,7 +165,59 @@ export default function Lore() {
             </p>
           </motion.div>
 
-          {/* Grid Layout */}
+          {/* MOST POPULAR SECTION (EXPRESS DRIVEN) */}
+          {popularLore.length > 0 && (
+            <div className="mb-20">
+              <div className="flex items-center gap-4 mb-8">
+                <div className={`h-px flex-1 ${isDark ? "bg-void-border" : "bg-scroll-border"}`} />
+                <h2 className={`font-pixel text-lg ${isDark ? "text-amber-500" : "text-amber-700"}`}>◈ MOST POPULAR ARCHIVES ◈</h2>
+                <div className={`h-px flex-1 ${isDark ? "bg-void-border" : "bg-scroll-border"}`} />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {popularLore.map((blog, idx) => (
+                  <motion.div
+                    key={`pop-${blog.id}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                    className={`group flex flex-col transition-all duration-300 overflow-hidden cursor-pointer border-2 ${
+                      isDark ? "bg-void-card border-amber-900/50 hover:border-amber-500" : "bg-scroll-card border-amber-200 hover:border-amber-500"
+                    }`}
+                  >
+                    <Link to={`/lore/${blog.slug}`} className="flex flex-col h-full p-5">
+                      <div className="flex justify-between items-start mb-3">
+                        <span className={`font-pixel px-2 py-1 text-xs border ${
+                          isDark ? "bg-amber-900/40 text-amber-400 border-amber-800" : "bg-amber-100 text-amber-800 border-amber-300"
+                        }`} style={{ fontSize: "8px" }}>
+                          {blog.tag}
+                        </span>
+                        <span className={`font-pixel text-xs ${isDark ? "text-amber-500/70" : "text-amber-700/70"}`} style={{ fontSize: "8px" }}>
+                          👁 {blog.views} VIEWS
+                        </span>
+                      </div>
+                      <h3 className={`font-serif font-bold text-xl leading-tight mb-2 ${isDark ? "text-void-text" : "text-scroll-text"}`}>
+                        {blog.title}
+                      </h3>
+                      <p className={`font-pixel text-xs mb-4 ${isDark ? "text-void-muted/60" : "text-scroll-muted/60"}`} style={{ fontSize: "8px" }}>
+                        BY {blog.author}
+                      </p>
+                      <p className={`font-body text-sm leading-relaxed flex-1 line-clamp-2 ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+                        {blog.excerpt}
+                      </p>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4 mb-8">
+             <h2 className={`font-pixel text-lg ${isDark ? "text-red-400" : "text-scroll-accent"}`}>◈ ALL RECORDS ◈</h2>
+             <div className={`h-px flex-1 ${isDark ? "bg-void-border" : "bg-scroll-border"}`} />
+          </div>
+
+          {/* Grid Layout (All Blogs) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {allBlogs.map((blog, idx) => {
               const isAuthor = session?.user?.id === blog.user_id;
@@ -153,7 +232,6 @@ export default function Lore() {
                     isDark ? "bg-void-card pixel-card-void" : "bg-scroll-card pixel-card-scroll"
                   }`}
                 >
-                  {/* Delete Button (Only visible to the author) */}
                   {isAuthor && (
                     <button
                       onClick={(e) => handleDeleteLore(e, blog.id)}
@@ -166,17 +244,14 @@ export default function Lore() {
                   )}
 
                   <Link to={`/lore/${blog.slug}`} className="flex flex-col h-full cursor-pointer">
-                    {/* Banner Image */}
                     <div className={`h-40 overflow-hidden border-b relative ${isDark ? "border-void-border" : "border-scroll-border"}`}>
-                      {/* Placeholder image layer */}
                       <div 
                         className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
                         style={{ backgroundImage: `url('${blog.banner}')`, opacity: isDark ? 0.4 : 0.8 }}
                       />
-                      {/* Dark overlay for void mode */}
                       {isDark && <div className="absolute inset-0 bg-void-bg/30" />}
                       
-                      <div className="absolute top-3 left-3 z-10">
+                      <div className="absolute top-3 left-3 z-10 flex gap-2">
                         <span className={`font-pixel px-2 py-1 text-xs border ${
                           isDark ? "bg-red-900/60 text-red-200 border-red-800" : "bg-scroll-accent text-white border-scroll-accent"
                         }`} style={{ fontSize: "8px" }}>
@@ -185,15 +260,21 @@ export default function Lore() {
                       </div>
                     </div>
 
-                    {/* Content Box */}
                     <div className="p-6 flex flex-col flex-1 relative z-10">
                       <div className="flex items-center justify-between mb-3">
                         <span className={`font-pixel text-xs ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
                           BY {blog.author}
                         </span>
-                        <span className={`font-pixel text-xs ${isDark ? "text-void-muted/60" : "text-scroll-muted/60"}`} style={{ fontSize: "8px" }}>
-                          {blog.date}
-                        </span>
+                        <div className="flex gap-3">
+                          {blog.views !== undefined && (
+                            <span className={`font-pixel text-xs ${isDark ? "text-amber-500/70" : "text-amber-700/70"}`} style={{ fontSize: "8px" }}>
+                              👁 {blog.views}
+                            </span>
+                          )}
+                          <span className={`font-pixel text-xs ${isDark ? "text-void-muted/60" : "text-scroll-muted/60"}`} style={{ fontSize: "8px" }}>
+                            {blog.date}
+                          </span>
+                        </div>
                       </div>
                       
                       <h3 className={`font-serif font-bold text-xl leading-tight mb-3 transition-colors ${
