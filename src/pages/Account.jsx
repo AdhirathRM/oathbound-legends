@@ -11,7 +11,10 @@ export default function Account() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
   const [userData, setUserData] = useState({
+    id: "",
     email: "",
     username: "",
     oathStatus: "",
@@ -19,28 +22,27 @@ export default function Account() {
 
   useEffect(() => {
     async function fetchProfile() {
-      // 1. Get the current active user session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError || !session) {
-        // If no one is logged in, send them back to the login page
         navigate("/");
         return;
       }
 
-      // 2. Fetch the custom profile data we created with our SQL trigger
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("username, oath_status")
+        .select("id, username, oath_status")
         .eq("id", session.user.id)
         .single();
 
       if (profile) {
         setUserData({
+          id: profile.id,
           email: session.user.email,
           username: profile.username,
           oathStatus: profile.oath_status,
         });
+        setNewUsername(profile.username);
       }
 
       setLoading(false);
@@ -48,6 +50,48 @@ export default function Account() {
 
     fetchProfile();
   }, [navigate]);
+
+  const handleUpdateUsername = async () => {
+    if (!newUsername.trim() || newUsername === userData.username) {
+      setIsEditing(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: newUsername.trim() })
+      .eq("id", userData.id);
+
+    if (!error) {
+      setUserData({ ...userData, username: newUsername.trim() });
+      setIsEditing(false);
+    } else {
+      alert("Error updating alias. It might already be taken.");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      "WARNING: This will strike your name from the archives forever. All progress and lore entries will be lost. Proceed?"
+    );
+
+    if (confirmed) {
+      setLoading(true);
+      // Delete profile data first
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userData.id);
+
+      if (!profileError) {
+        await supabase.auth.signOut();
+        navigate("/");
+      } else {
+        setLoading(false);
+        alert("Failed to delete records from the archive.");
+      }
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -90,13 +134,51 @@ export default function Account() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Username Section */}
                 <div>
                   <h3 className={`font-pixel text-xs mb-2 ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
                     ARCHIVE ALIAS
                   </h3>
-                  <p className={`font-body text-lg ${isDark ? "text-void-text" : "text-scroll-text"}`}>
-                    {userData.username}
-                  </p>
+                  {isEditing ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newUsername}
+                        onChange={(e) => setNewUsername(e.target.value)}
+                        className={`flex-1 px-3 py-1 font-body text-lg outline-none border ${
+                          isDark 
+                            ? "bg-void-bg border-red-900 text-void-text" 
+                            : "bg-white border-scroll-accent text-scroll-text"
+                        }`}
+                      />
+                      <button 
+                        onClick={handleUpdateUsername}
+                        className="font-pixel px-3 text-emerald-500 hover:text-emerald-400"
+                        style={{ fontSize: "10px" }}
+                      >
+                        [SAVE]
+                      </button>
+                      <button 
+                        onClick={() => { setIsEditing(false); setNewUsername(userData.username); }}
+                        className="font-pixel px-3 text-red-500 hover:text-red-400"
+                        style={{ fontSize: "10px" }}
+                      >
+                        [X]
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <p className={`font-body text-lg ${isDark ? "text-void-text" : "text-scroll-text"}`}>
+                        {userData.username}
+                      </p>
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className={`font-pixel text-[8px] hover:underline ${isDark ? "text-red-400" : "text-scroll-accent"}`}
+                      >
+                        EDIT ALIAS
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 <div>
@@ -119,7 +201,8 @@ export default function Account() {
                   </span>
                 </div>
 
-                <div className={`pt-6 mt-6 border-t ${isDark ? "border-void-border" : "border-scroll-border"}`}>
+                {/* Action Buttons */}
+                <div className={`pt-6 mt-6 border-t flex flex-col gap-3 ${isDark ? "border-void-border" : "border-scroll-border"}`}>
                   <button
                     onClick={handleLogout}
                     className={`font-pixel w-full block text-center py-4 transition-all duration-300 ${
@@ -130,6 +213,18 @@ export default function Account() {
                     style={{ fontSize: "9px" }}
                   >
                     LOG OUT
+                  </button>
+
+                  <button
+                    onClick={handleDeleteAccount}
+                    className={`font-pixel w-full block text-center py-2 transition-all duration-300 ${
+                      isDark
+                        ? "text-red-900 hover:text-red-600"
+                        : "text-red-300 hover:text-red-700"
+                    }`}
+                    style={{ fontSize: "7px" }}
+                  >
+                    FORSAKE OATH & DELETE ACCOUNT
                   </button>
                 </div>
               </div>

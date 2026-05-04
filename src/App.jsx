@@ -11,6 +11,7 @@ import BlogPost from "./pages/BlogPost";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Account from "./pages/Account";
+import Admin from "./pages/Admin";
 
 export default function App() {
   const location = useLocation();
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/lore/:slug" element={<BlogPost />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/admin-forbidden-archives" element={<Admin />} />
         </Routes>
       </AnimatePresence>
     </div>
