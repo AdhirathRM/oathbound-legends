@@ -1,13 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../hooks/useTheme";
+import { supabase } from "../lib/supabase";
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const isDark = theme === "void";
+
+  useEffect(() => {
+    // 1. Check initial session and admin status
+    async function getInitialSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        checkAdminStatus(session.user.id);
+      }
+    }
+    getInitialSession();
+
+    // 2. Listen for login/logout to update the Admin button visibility
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function checkAdminStatus(userId) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+    
+    if (!error && data?.is_admin) {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
+  }
 
   const navLinks = [
     { to: "/home", label: "Home" },
@@ -82,6 +120,20 @@ export default function Navbar() {
                 />
               </Link>
             ))}
+
+            {/* SECRET ADMIN LINK - Desktop */}
+            {isAdmin && (
+              <Link
+                to="/admin-forbidden-archives"
+                className={`font-pixel text-[8px] px-3 py-1 border transition-all ${
+                  isDark 
+                    ? "border-red-900 bg-red-950/30 text-red-400 hover:bg-red-900 hover:text-white"
+                    : "border-red-400 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white"
+                }`}
+              >
+                ADMIN
+              </Link>
+            )}
           </div>
 
           {/* Theme Toggle + Hamburger */}
@@ -163,6 +215,17 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
+              {/* SECRET ADMIN LINK - Mobile */}
+              {isAdmin && (
+                <Link
+                  to="/admin-forbidden-archives"
+                  onClick={() => setMenuOpen(false)}
+                  className={`font-pixel text-[9px] py-3 border-b border-red-900/30 text-red-400 hover:text-red-300`}
+                >
+                  ADMIN PANEL
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

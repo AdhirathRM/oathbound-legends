@@ -148,11 +148,11 @@ export default function Profile() {
   }, [character?.id]);
 
   const fetchComments = async () => {
-    // We join the profiles table to get the username of the commenter
     const { data, error } = await supabase
       .from("comments")
       .select(`
         id,
+        user_id,
         content,
         created_at,
         profiles ( username )
@@ -181,12 +181,28 @@ export default function Profile() {
 
     if (!error) {
       setNewComment("");
-      fetchComments(); // Refresh list to show the new comment
+      fetchComments(); 
     } else {
       console.error("Error posting comment:", error);
     }
 
     setIsSubmitting(false);
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    const confirmDelete = window.confirm("Are you sure you want to strike this strategy from the archives?");
+    if (!confirmDelete) return;
+
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId);
+
+    if (!error) {
+      fetchComments();
+    } else {
+      console.error("Error deleting comment:", error);
+    }
   };
 
   const formatDate = (isoString) => {
@@ -304,15 +320,12 @@ export default function Profile() {
                 )}
               </div>
 
-              {/* CHANGED: Hide Anim state label and buttons for Leo */}
               {!isLeo && (
                 <>
-                  {/* Anim state label */}
                   <div className={`font-pixel text-xs ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
                     ANIMATION: <span className={isDark ? "text-red-400" : "text-scroll-accent"}>{animState.toUpperCase()}</span>
                   </div>
 
-                  {/* Animation state buttons */}
                   <div className={`flex gap-2 p-1 ${isDark ? "bg-void-card border border-void-border" : "bg-scroll-surface border border-scroll-border"}`}>
                     {availableAnimStates.map((state) => (
                       <button
@@ -332,7 +345,6 @@ export default function Profile() {
                 </>
               )}
 
-              {/* Weapon */}
               {character.weapon && !isMalakor && (
                 <div className={`w-full max-w-sm p-4 ${isDark ? "bg-void-card border border-void-border" : "bg-scroll-card border border-scroll-border"}`}>
                   <div className={`font-pixel text-xs mb-1 ${isDark ? "text-red-500/70" : "text-scroll-warm"}`} style={{ fontSize: "8px" }}>WEAPON</div>
@@ -340,7 +352,6 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Trial info */}
               {character.trials && (
                 <div className={`w-full max-w-sm p-4 ${isDark ? "bg-void-card border border-void-border" : "bg-scroll-card border border-scroll-border"}`}>
                   <div className={`font-pixel text-xs mb-1 ${isDark ? "text-red-500/70" : "text-scroll-warm"}`} style={{ fontSize: "8px" }}>ENCOUNTERED IN</div>
@@ -354,7 +365,6 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Leo status */}
               {isLeo && (
                 <div className={`w-full max-w-sm p-4 border-2 border-dashed ${isDark ? "border-amber-800/50 bg-amber-950/20" : "border-amber-400 bg-amber-50"}`}>
                   <div className={`font-pixel text-xs mb-1 ${isDark ? "text-amber-400" : "text-amber-700"}`} style={{ fontSize: "8px" }}>STATUS</div>
@@ -370,7 +380,6 @@ export default function Profile() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="flex flex-col gap-6"
             >
-              {/* Name + Type */}
               <div>
                 <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <span
@@ -396,14 +405,12 @@ export default function Profile() {
                 </h1>
               </div>
 
-              {/* Description */}
               <div className={`p-5 border-l-4 ${isDark ? "bg-void-card/50" : "bg-scroll-surface"}`} style={{ borderColor: accentColor }}>
                 <p className={`font-body italic text-lg leading-relaxed ${isDark ? "text-void-text" : "text-scroll-text"}`}>
                   {character.description}
                 </p>
               </div>
 
-              {/* Lore */}
               <div>
                 <div className={`font-pixel text-xs mb-3 flex items-center gap-2 ${isDark ? "text-red-400" : "text-scroll-warm"}`} style={{ fontSize: "9px" }}>
                   <span>◈</span> LORE ENTRY
@@ -413,7 +420,6 @@ export default function Profile() {
                 </p>
               </div>
 
-              {/* Visual Style note */}
               {character.visualStyle && (
                 <div className={`p-4 border ${isDark ? "border-void-border/40 bg-void-card/30" : "border-scroll-border bg-scroll-surface"}`}>
                   <div className={`font-pixel text-xs mb-2 ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
@@ -425,14 +431,12 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Stats — Leo has no combat stats */}
               {!isLeo && (
                 <div className={`p-5 ${isDark ? "bg-void-card pixel-card-void" : "bg-scroll-card pixel-card-scroll"}`}>
                   <div className={`font-pixel text-xs mb-4 flex items-center gap-2 ${isDark ? "text-red-400" : "text-scroll-warm"}`} style={{ fontSize: "9px" }}>
                     <span>◈</span> COMBAT STATISTICS
                   </div>
 
-                  {/* Malakor phase toggle */}
                   {isMalakor && (
                     <div className={`flex gap-1 p-1 mb-5 ${isDark ? "bg-void-bg border border-void-border" : "bg-scroll-surface border border-scroll-border"}`}>
                       {[1, 2].map((phase) => (
@@ -465,7 +469,6 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* Leo — no combat, show role */}
               {isLeo && (
                 <div className={`p-5 border-2 border-dashed text-center ${isDark ? "border-amber-800/40 bg-amber-950/10" : "border-amber-400 bg-amber-50"}`}>
                   <p className={`font-pixel mb-2 ${isDark ? "text-amber-400" : "text-amber-700"}`} style={{ fontSize: "9px" }}>
@@ -508,8 +511,18 @@ export default function Profile() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.4 }}
-                      className={`p-5 flex flex-col ${isDark ? "bg-void-card pixel-card-void" : "bg-scroll-card pixel-card-scroll"}`}
+                      className={`p-5 flex flex-col relative ${isDark ? "bg-void-card pixel-card-void" : "bg-scroll-card pixel-card-scroll"}`}
                     >
+                      {/* DELETE BUTTON - Only for owner */}
+                      {session?.user?.id === comment.user_id && (
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="absolute top-2 right-2 font-pixel text-[6px] text-red-500 hover:text-red-400 transition-colors"
+                        >
+                          [ DELETE ]
+                        </button>
+                      )}
+
                       <div className="flex items-center justify-between mb-3 border-b pb-2 border-opacity-30 border-current">
                         <div className="flex items-center gap-2">
                           <div
