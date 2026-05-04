@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { useTheme } from "../hooks/useTheme";
 import { getBlogBySlug } from "../data/blogs";
-import { supabase } from "../lib/supabase";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function BlogPost() {
   const { slug } = useParams();
@@ -24,23 +25,25 @@ export default function BlogPost() {
         return;
       }
 
-      // 2. If not, check the database for community submissions
-      const { data, error } = await supabase
-        .from("lore_entries")
-        .select("*, profiles(username)")
-        .eq("slug", slug)
-        .single();
-
-      if (data && !error) {
-        setBlog({
-          id: data.id,
-          title: data.title,
-          author: data.profiles?.username || "Unknown Archivist",
-          date: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          tag: data.tag,
-          banner: data.banner,
-          content: data.content,
-        });
+      // 2. If not static, fetch from our custom Express API!
+      try {
+        const response = await fetch(`${API_URL}/api/lore/read/${slug}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setBlog({
+            id: data.id,
+            title: data.title,
+            author: data.profiles?.username || "Unknown Archivist",
+            date: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            tag: data.tag,
+            banner: data.banner,
+            content: data.content,
+            views: data.view_count || 0 // Grab the newly incremented view count
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching lore from Express:", error);
       }
       
       setLoading(false);
@@ -117,6 +120,12 @@ export default function BlogPost() {
                 <span className={isDark ? "text-void-muted/50" : "text-scroll-muted/50"}>
                   | {blog.date}
                 </span>
+                {/* ◈ Added View Count Display ◈ */}
+                {blog.views !== undefined && (
+                  <span className={isDark ? "text-amber-500/70" : "text-amber-700/70"}>
+                    | 👁 {blog.views} VIEWS
+                  </span>
+                )}
               </div>
 
               <h1 className={`font-serif font-black text-3xl md:text-5xl leading-tight mb-8 ${isDark ? "text-void-text glow-text" : "text-scroll-text"}`}>

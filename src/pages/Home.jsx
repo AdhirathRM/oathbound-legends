@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
@@ -6,6 +7,86 @@ import PixelStars from "../components/PixelStars";
 import { useTheme } from "../hooks/useTheme";
 import { trials } from "../data/trials";
 import { characters } from "../data/characters";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+function RandomLoreWidget({ isDark }) {
+  const [randomLore, setRandomLore] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/lore/random`)
+      .then((res) => {
+        if (!res.ok) throw new Error("API Network error");
+        return res.json();
+      })
+      .then((data) => {
+        setRandomLore(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <section className={`py-12 px-4 border-y ${isDark ? "bg-void-surface/50 border-void-border" : "bg-scroll-surface/50 border-scroll-border"}`}>
+        <div className="max-w-4xl mx-auto text-center">
+          <div className={`font-pixel text-xs animate-pulse ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+            CONSULTING THE ARCHIVES SERVER...
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!randomLore) return null;
+
+  return (
+    <section className={`py-16 px-4 border-y ${isDark ? "bg-void-surface/50 border-void-border" : "bg-scroll-surface/50 border-scroll-border"}`}>
+      <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className={`p-8 md:p-12 border ${isDark ? "bg-void-card pixel-card-void border-void-border" : "bg-scroll-card pixel-card-scroll border-scroll-border"}`}
+        >
+          <div className="text-center mb-8">
+            <span className={`font-pixel text-xs mb-2 block ${isDark ? "text-red-400" : "text-scroll-accent"}`} style={{ fontSize: "9px" }}>
+              ◈ LORE OF THE DAY ◈
+            </span>
+            <h3 className={`font-serif font-black text-2xl md:text-3xl ${isDark ? "text-void-text glow-text" : "text-scroll-text"}`}>
+              {randomLore.title}
+            </h3>
+            <p className={`font-body italic mt-2 ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+              By {randomLore.profiles?.username || "Unknown Archivist"}
+            </p>
+          </div>
+          
+          <p className={`font-body text-base md:text-lg leading-relaxed text-center max-w-2xl mx-auto mb-8 ${isDark ? "text-void-muted" : "text-scroll-muted"}`}>
+            "{randomLore.excerpt}"
+          </p>
+
+          <div className="text-center">
+            <Link
+              to={`/lore/${randomLore.slug}`}
+              className={`font-pixel px-6 py-3 border inline-block transition-all duration-300 ${
+                isDark
+                  ? "border-void-border text-void-muted hover:border-red-800 hover:text-red-400 bg-void-bg/50"
+                  : "border-scroll-border text-scroll-muted hover:border-scroll-accent hover:text-scroll-accent bg-white/50"
+              }`}
+              style={{ fontSize: "9px" }}
+            >
+              READ FULL ENTRY →
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
 
 const seraphim = characters.find((c) => c.id === "seraphim");
 const previewTrials = trials.slice(0, 3);
@@ -34,21 +115,17 @@ export default function Home() {
 
   return (
     <PageTransition>
-      {/* ── Hero Section ─────────────────────────────────── */}
       <section
         className={`relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden px-4 ${isDark ? "bg-void-bg" : "bg-scroll-bg"
           }`}
       >
         {isDark ? (
           <>
-            {/* Throne room background image */}
             <div
               className="absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: "url('/throne-room.png')" }}
             />
-            {/* Dark overlay so text stays readable */}
             <div className="absolute inset-0 bg-black/65" />
-            {/* Your original color overlays on top */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,0,0,0.35)_0%,transparent_70%)]" />
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-900/20 rounded-full blur-3xl" />
             <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-900/15 rounded-full blur-3xl" />
@@ -80,7 +157,6 @@ export default function Home() {
           initial="hidden"
           animate="visible"
         >
-          {/* Badge */}
           <motion.div variants={itemVariants} className="mb-6">
             <span
               className={`font-pixel text-xs px-4 py-2 border inline-block ${isDark
@@ -93,7 +169,6 @@ export default function Home() {
             </span>
           </motion.div>
 
-          {/* Title with Hover Animation */}
           <motion.h1
             variants={itemVariants}
             className="mb-4 cursor-default group inline-block"
@@ -116,7 +191,6 @@ export default function Home() {
             </span>
           </motion.h1>
 
-          {/* Story Intro Paragraph with Hover Animation & Enhanced Readability */}
           <motion.p
             variants={itemVariants}
             className={`font-body text-base sm:text-lg max-w-2xl mx-auto mb-4 leading-relaxed cursor-default group transition-all duration-300 ${isDark
@@ -135,7 +209,6 @@ export default function Home() {
             be forgotten, lost to the shadows of eternity.
           </motion.p>
 
-          {/* Subtitle Paragraph with Hover Animation & Enhanced Readability */}
           <motion.p
             variants={itemVariants}
             className={`font-body italic text-sm max-w-xl mx-auto mb-10 cursor-default group transition-all duration-300 ${isDark
@@ -148,7 +221,6 @@ export default function Home() {
             "The clock is ticking. The trials await."
           </motion.p>
 
-          {/* CTA */}
           <motion.div variants={itemVariants} className="flex flex-wrap gap-4 justify-center">
             <Link
               to="/chronicle"
@@ -184,7 +256,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ── Party Roster Strip ───────────────────────────── */}
       <section className={`py-10 px-4 border-y ${isDark ? "bg-void-surface/80 border-void-border" : "bg-scroll-surface border-scroll-border"}`}>
         <div className="max-w-3xl mx-auto">
           <p className={`font-pixel text-center mb-6 ${isDark ? "text-void-muted" : "text-scroll-muted"}`} style={{ fontSize: "8px" }}>
@@ -221,7 +292,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Trial Preview Section ────────────────────────── */}
       <section className={`py-20 px-4 ${isDark ? "bg-void-surface/50" : "bg-scroll-surface/50"}`}>
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -300,7 +370,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Seraphim Spotlight ───────────────────────────── */}
+      <RandomLoreWidget isDark={isDark} />
+
       <section className={`py-20 px-4 ${isDark ? "bg-void-bg" : "bg-scroll-bg"}`}>
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -333,7 +404,6 @@ export default function Home() {
               <div className="absolute top-0 right-0 w-64 h-64 opacity-10 rounded-full blur-3xl" style={{ background: "#DC143C" }} />
             )}
 
-            {/* Sprite */}
             <div className="flex flex-col items-center justify-center gap-4 relative z-10">
               <SpriteBox type="character" color={seraphim.spriteColor} size="xl" />
               <span
@@ -347,7 +417,6 @@ export default function Home() {
               </span>
             </div>
 
-            {/* Info */}
             <div className="flex flex-col justify-center relative z-10">
               <div className={`font-pixel text-xs mb-1 ${isDark ? "text-red-400" : "text-scroll-warm"}`} style={{ fontSize: "8px" }}>
                 {seraphim.title.toUpperCase()}
@@ -365,7 +434,6 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* Stat bars */}
               <div className="grid grid-cols-5 gap-2 mb-6">
                 {Object.entries(seraphim.stats).map(([stat, val]) => (
                   <div key={stat} className="text-center">
@@ -400,7 +468,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Malakor Warning Banner ───────────────────────── */}
       <section
         className={`py-12 px-4 border-t ${isDark ? "bg-red-950/20 border-red-900/30" : "bg-amber-50 border-amber-200"
           }`}

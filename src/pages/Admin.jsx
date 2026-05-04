@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabase";
 import PageTransition from "../components/PageTransition";
 import { useTheme } from "../hooks/useTheme";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function Admin() {
   const { theme } = useTheme();
   const isDark = theme === "void";
@@ -11,6 +13,7 @@ export default function Admin() {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentSession, setCurrentSession] = useState(null);
   
   // Data States
   const [profiles, setProfiles] = useState([]);
@@ -25,6 +28,8 @@ export default function Admin() {
         navigate("/");
         return;
       }
+
+      setCurrentSession(session);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -58,11 +63,31 @@ export default function Admin() {
     setLoading(false);
   };
 
+  // ◈ UPDATED TO USE EXPRESS API ◈
   const deleteItem = async (table, id) => {
     if (!window.confirm(`Are you sure you want to banish this ${table} entry forever?`)) return;
     
-    const { error } = await supabase.from(table).delete().eq("id", id);
-    if (!error) fetchAdminData();
+    try {
+      const response = await fetch(`${API_URL}/api/admin/purge/${table}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        // We pass our ID to the server so it can verify we are an Admin
+        body: JSON.stringify({ adminId: currentSession.user.id }) 
+      });
+
+      if (!response.ok) {
+        throw new Error("Server rejected the purge command.");
+      }
+
+      // If successful, refresh the data to reflect the deletion
+      fetchAdminData();
+      
+    } catch (error) {
+      console.error("Purge Error:", error);
+      alert("The archives resisted your command.");
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-pixel">ACCESSING FORBIDDEN ARCHIVES...</div>;
