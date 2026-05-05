@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import PageTransition from "../components/PageTransition";
 import { useTheme } from "../hooks/useTheme";
@@ -63,7 +63,6 @@ export default function Admin() {
     setLoading(false);
   };
 
-  // ◈ UPDATED TO USE EXPRESS API ◈
   const deleteItem = async (table, id) => {
     if (!window.confirm(`Are you sure you want to banish this ${table} entry forever?`)) return;
     
@@ -73,7 +72,6 @@ export default function Admin() {
         headers: {
           'Content-Type': 'application/json'
         },
-        // We pass our ID to the server so it can verify we are an Admin
         body: JSON.stringify({ adminId: currentSession.user.id }) 
       });
 
@@ -81,7 +79,6 @@ export default function Admin() {
         throw new Error("Server rejected the purge command.");
       }
 
-      // If successful, refresh the data to reflect the deletion
       fetchAdminData();
       
     } catch (error) {
@@ -134,10 +131,28 @@ export default function Admin() {
               <h2 className="font-pixel text-xs mb-4 text-red-400">◈ STRATEGY MODERATION</h2>
               <div className="space-y-4">
                 {comments.map(c => (
-                  <div key={c.id} className={`p-4 border ${isDark ? "bg-void-card border-void-border" : "bg-scroll-card border-scroll-border"}`}>
-                    <p className="text-xs font-pixel mb-1 text-red-500/70">{c.profiles?.username}</p>
-                    <p className="text-sm italic mb-3">"{c.content}"</p>
-                    <button onClick={() => deleteItem('comments', c.id)} className="font-pixel text-[8px] text-red-500">DELETE COMMENT</button>
+                  <div key={c.id} className={`p-4 border flex flex-col ${isDark ? "bg-void-card border-void-border" : "bg-scroll-card border-scroll-border"}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-xs font-pixel text-red-500/70">{c.profiles?.username}</p>
+                      <span className={`font-pixel text-[7px] px-2 py-1 border ${isDark ? "border-void-border text-void-muted" : "border-scroll-border text-scroll-muted"}`}>
+                        {c.character_id?.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-sm italic mb-4 flex-1">"{c.content}"</p>
+                    
+                    <div className={`flex gap-4 pt-3 border-t ${isDark ? "border-void-border" : "border-scroll-border"}`}>
+                      <Link 
+                        to={`/profile/${c.character_id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-pixel text-[8px] text-emerald-500 hover:text-emerald-400 transition-colors"
+                      >
+                        VIEW CONTEXT ↗
+                      </Link>
+                      <button onClick={() => deleteItem('comments', c.id)} className="font-pixel text-[8px] text-red-500 hover:text-red-400 transition-colors">
+                        DELETE COMMENT
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -148,10 +163,23 @@ export default function Admin() {
               <h2 className="font-pixel text-xs mb-4 text-red-400">◈ LORE MODERATION</h2>
               <div className="space-y-4">
                 {lore.map(l => (
-                  <div key={l.id} className={`p-4 border ${isDark ? "bg-void-card border-void-border" : "bg-scroll-card border-scroll-border"}`}>
+                  <div key={l.id} className={`p-4 border flex flex-col ${isDark ? "bg-void-card border-void-border" : "bg-scroll-card border-scroll-border"}`}>
                     <p className="text-xs font-pixel mb-1 text-red-500/70">{l.profiles?.username}</p>
-                    <p className="font-bold mb-1">{l.title}</p>
-                    <button onClick={() => deleteItem('lore_entries', l.id)} className="font-pixel text-[8px] text-red-500">DELETE ENTRY</button>
+                    <p className="font-bold mb-4 flex-1">{l.title}</p>
+                    
+                    <div className={`flex gap-4 pt-3 border-t ${isDark ? "border-void-border" : "border-scroll-border"}`}>
+                      <Link 
+                        to={`/lore/${l.slug}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-pixel text-[8px] text-emerald-500 hover:text-emerald-400 transition-colors"
+                      >
+                        VIEW ENTRY ↗
+                      </Link>
+                      <button onClick={() => deleteItem('lore_entries', l.id)} className="font-pixel text-[8px] text-red-500 hover:text-red-400 transition-colors">
+                        DELETE ENTRY
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
