@@ -11,13 +11,11 @@ export default function Chronicle() {
   const { theme } = useTheme();
   const isDark = theme === "void";
 
-  // Database States
   const [session, setSession] = useState(null);
   const [unlockedTrial, setUnlockedTrial] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch current progress on mount
     const fetchProgress = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -35,7 +33,6 @@ export default function Chronicle() {
     
     fetchProgress();
 
-    // 2. Listen for login/logout events to instantly update the UI
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
@@ -54,7 +51,6 @@ export default function Chronicle() {
     
     const nextNumber = currentNumber + 1;
     
-    // Update Supabase
     const { error } = await supabase
       .from("user_progress")
       .update({ unlocked_trial: nextNumber, last_updated: new Date().toISOString() })
@@ -73,7 +69,6 @@ export default function Chronicle() {
     if (!session) return;
     setIsUpdating(true);
     
-    // Reset to Trial 1 in Supabase
     const { error } = await supabase
       .from("user_progress")
       .update({ unlocked_trial: 1, last_updated: new Date().toISOString() })

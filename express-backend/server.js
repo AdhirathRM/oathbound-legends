@@ -6,25 +6,20 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors()); 
 app.use(express.json()); 
 
-// 1. Standard Client (For public reads)
 const supabase = createClient(
   process.env.SUPABASE_URL, 
   process.env.SUPABASE_ANON_KEY
 );
 
-// 2. Admin Client (Bypasses security, uses Service Role Key)
+// admin client for DB writes that bypass row-level security
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL, 
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// ==========================================
-// ROUTE 1: GET RANDOM LORE 
-// ==========================================
 app.get('/api/lore/random', async (req, res) => {
   try {
     const { data: lore, error } = await supabase
@@ -46,9 +41,6 @@ app.get('/api/lore/random', async (req, res) => {
   }
 });
 
-// ==========================================
-// ROUTE 2: SECURE ADMIN PURGE 
-// ==========================================
 app.delete('/api/admin/purge/:table/:id', async (req, res) => {
   const { table, id } = req.params;
   const { adminId } = req.body; 
@@ -83,12 +75,8 @@ app.delete('/api/admin/purge/:table/:id', async (req, res) => {
   }
 });
 
-// ==========================================
-// ROUTE 3: GET MOST POPULAR LORE 
-// ==========================================
 app.get('/api/lore/popular', async (req, res) => {
   try {
-    // Fetch top 3 entries sorted by view_count
     const { data, error } = await supabase
       .from('lore_entries')
       .select('*, profiles(username)')
@@ -103,14 +91,10 @@ app.get('/api/lore/popular', async (req, res) => {
   }
 });
 
-// ==========================================
-// ROUTE 4: READ LORE & INCREMENT VIEWS (Middleware Side-Effect)
-// ==========================================
 app.get('/api/lore/read/:slug', async (req, res) => {
   const { slug } = req.params;
   
   try {
-    // 1. Fetch the requested lore entry
     const { data: lore, error: fetchError } = await supabase
       .from('lore_entries')
       .select('*, profiles(username)')
@@ -121,16 +105,14 @@ app.get('/api/lore/read/:slug', async (req, res) => {
       return res.status(404).json({ error: "Lore not found" });
     }
 
-    // 2. Secretly calculate the new view count on the server
+    // increment view count server-side so users don't need write permissions
     const newViewCount = (lore.view_count || 0) + 1;
     
-    // 3. Update the database using the Admin client so the user doesn't need edit permissions
     await supabaseAdmin
       .from('lore_entries')
       .update({ view_count: newViewCount })
       .eq('id', lore.id);
 
-    // 4. Send the data (with the updated count) back to the React frontend
     res.json({ ...lore, view_count: newViewCount });
 
   } catch (error) {
@@ -139,7 +121,6 @@ app.get('/api/lore/read/:slug', async (req, res) => {
   }
 });
 
-// Start the server
 app.listen(port, () => {
   console.log(`◈ Oathbound Backend running on http://localhost:${port}`);
 });

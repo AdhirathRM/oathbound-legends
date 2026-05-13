@@ -118,7 +118,6 @@ export default function Profile() {
   const [animState, setAnimState] = useState("Idle");
   const [malakorPhase, setMalakorPhase] = useState(1);
 
-  // Community Comments State
   const [session, setSession] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -126,7 +125,6 @@ export default function Profile() {
 
   const character = getCharacterById(id);
 
-  // Fetch session and comments on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);

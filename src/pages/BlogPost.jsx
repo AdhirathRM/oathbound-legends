@@ -17,7 +17,7 @@ export default function BlogPost() {
 
   useEffect(() => {
     const fetchBlogData = async () => {
-      // 1. First, check if it's one of the static hardcoded blogs
+      // try static first, then check database
       const staticBlog = getBlogBySlug(slug);
       if (staticBlog) {
         setBlog(staticBlog);
@@ -25,7 +25,6 @@ export default function BlogPost() {
         return;
       }
 
-      // 2. If not static, fetch from our custom Express API!
       try {
         const response = await fetch(`${API_URL}/api/lore/read/${slug}`);
         

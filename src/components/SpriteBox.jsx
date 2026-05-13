@@ -63,7 +63,6 @@ export default function SpriteBox({
 
   const spritePath = getSpritePath();
 
-  // CHANGED: Added specific check for enemy_attack to use 6 frames instead of 7
   let frames = 4;
   if (spritePath.includes("enemy_attack")) {
     frames = 6;

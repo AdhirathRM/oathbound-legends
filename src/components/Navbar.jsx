@@ -12,7 +12,6 @@ export default function Navbar() {
   const isDark = theme === "void";
 
   useEffect(() => {
-    // 1. Check initial session and admin status
     async function getInitialSession() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -21,7 +20,6 @@ export default function Navbar() {
     }
     getInitialSession();
 
-    // 2. Listen for login/logout to update the Admin button visibility
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         checkAdminStatus(session.user.id);

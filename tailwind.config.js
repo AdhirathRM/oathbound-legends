@@ -5,7 +5,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Void (dark) palette
         void: {
           bg: "#0a0812",
           surface: "#110d1e",
@@ -17,7 +16,6 @@ export default {
           text: "#e2d9f3",
           muted: "#7c6fa0",
         },
-        // Ancient Scroll (light) palette
         scroll: {
           bg: "#f5ecd7",
           surface: "#ede0c4",

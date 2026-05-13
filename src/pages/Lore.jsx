@@ -16,14 +16,12 @@ export default function Lore() {
   const [dynamicBlogs, setDynamicBlogs] = useState([]);
   const [popularLore, setPopularLore] = useState([]);
   
-  // Form State
   const [title, setTitle] = useState("");
   const [tag, setTag] = useState("LORE");
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Session setup
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -43,7 +41,6 @@ export default function Lore() {
       const res = await fetch(`${API_URL}/api/lore/popular`);
       if (res.ok) {
         const data = await res.json();
-        // Format them similarly to the main fetch
         const formatted = data.map(entry => ({
           id: entry.id,
           slug: entry.slug,

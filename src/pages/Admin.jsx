@@ -15,7 +15,6 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [currentSession, setCurrentSession] = useState(null);
   
-  // Data States
   const [profiles, setProfiles] = useState([]);
   const [comments, setComments] = useState([]);
   const [lore, setLore] = useState([]);
